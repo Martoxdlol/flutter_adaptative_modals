@@ -1,5 +1,6 @@
 import 'package:adaptative_modals/adaptative_modals.dart';
 import 'package:adaptative_modals_example/theme_switch.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeSwitcher.of(context).themeData,
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Adaptative Modals'),
     );
   }
 }
@@ -33,14 +34,24 @@ class MyHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Adaptative Modals'),
+        title: Text(title),
       ),
       body: CentralContainer(
           child: ListView(children: [
         ColorlessButtonCard(
             child: const Text('Open modal'),
             onTap: () {
-              openDemoModal(context);
+              openNormalModal(context);
+            }),
+        ColorlessButtonCard(
+            child: const Text('Open full screen modal (on mobile)'),
+            onTap: () {
+              openModalFullScreen(context);
+            }),
+        ColorlessButtonCard(
+            child: const Text('Open modal with navigator'),
+            onTap: () {
+              openDemoModalWithNavigator(context);
             }),
         ColorlessButtonCard(
           child: Text("Light THEME"),
@@ -59,25 +70,132 @@ class MyHomePage extends StatelessWidget {
   }
 }
 
-void openDemoModal(BuildContext context) {
+void openNormalModal(BuildContext context) {
   openModal(
     context,
     (context) => AdaptativeModal(
       title: Text('My super modal'),
-      child: Column(
-        children: [
-          ColorlessButtonCard(
-            child: Text('Open other modal'),
-            onTap: () => openDemoModal(context),
-          ),
-        ],
-      ),
+      child: Container(
+          padding: EdgeInsets.all(10),
+          child: Column(
+            children: [
+              ColorlessButtonCard(
+                child: Text('Open other modal'),
+                onTap: () => openNormalModal(context),
+              ),
+            ],
+          )),
     ),
   );
 }
 
-void openModal(BuildContext context, Widget Function(BuildContext context) builder) {
-  Navigator.of(context).push(AdaptativeModalPageRoute(builder: builder));
+void openModalFullScreen(BuildContext context) {
+  openModal(
+      context,
+      (context) => Scaffold(
+            appBar: AppBar(),
+            body: Container(
+                padding: EdgeInsets.all(10),
+                child: Column(
+                  children: [
+                    ColorlessButtonCard(
+                      child: Text('Open other modal'),
+                      onTap: () => openModalFullScreen(context),
+                    ),
+                  ],
+                )),
+          ),
+      fullScreen: true,
+      pageTransition: true);
+}
+
+class ModalWithNavigatorContent extends StatelessWidget {
+  const ModalWithNavigatorContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(),
+      body: Container(
+          padding: EdgeInsets.all(10),
+          child: Column(
+            children: [
+              ColorlessButtonCard(
+                  child: const Text('Open modal'),
+                  onTap: () {
+                    openNormalModal(context);
+                  }),
+              ColorlessButtonCard(
+                  child: const Text('Open full screen modal (on mobile)'),
+                  onTap: () {
+                    openModalFullScreen(context);
+                  }),
+              ColorlessButtonCard(
+                  child: const Text('Open modal with navigator'),
+                  onTap: () {
+                    openDemoModalWithNavigator(context, false);
+                  }),
+              ColorlessButtonCard(
+                child: Text('Open other route'),
+                onTap: () {
+                  Navigator.of(context).push(CupertinoPageRoute(builder: (context) => ModalWithNavigatorContent()));
+                },
+              ),
+              ColorlessButtonCard(
+                child: Text('Back'),
+                onTap: () {
+                  bool poped = false;
+                  Navigator.popUntil(context, (currentRoute) {
+                    if (poped) return true;
+                    if (currentRoute.isFirst) {
+                      Navigator.of(context).context.findAncestorStateOfType<NavigatorState>()!.pop();
+                      return true;
+                    } else {
+                      poped = true;
+                      return false;
+                    }
+                  });
+                },
+              ),
+            ],
+          )),
+    );
+  }
+}
+
+class NavigatorPageModal extends StatelessWidget {
+  const NavigatorPageModal({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    return Navigator(
+      key: navigatorKey,
+      onGenerateRoute: (_) => CupertinoPageRoute(
+        builder: (context) {
+          return ModalWithNavigatorContent();
+        },
+      ),
+    );
+  }
+}
+
+void openDemoModalWithNavigator(BuildContext context, [bool big = true]) {
+  Navigator.of(context).push(AdaptativeModalPageRoute(
+      width: big ? 1000 : 640, height: big ? 600 : 480, builder: (context) => NavigatorPageModal(), fullScreen: true));
+}
+
+void openModal(BuildContext context, Widget Function(BuildContext context) builder,
+    {bool fullScreen = false, bool pageTransition = false}) {
+  Widget transition(child, animation, secondaryAnimation) => CupertinoPageTransition(
+        linearTransition: true,
+        primaryRouteAnimation: animation,
+        secondaryRouteAnimation: secondaryAnimation,
+        child: child,
+      );
+
+  Navigator.of(context)
+      .push(AdaptativeModalPageRoute(builder: builder, fullScreen: fullScreen, pageTransition: pageTransition ? transition : null));
 }
 
 class CentralContainer extends StatelessWidget {
