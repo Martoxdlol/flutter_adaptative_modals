@@ -6,7 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 /// A Calculator.
-class AdaptativeModalPageRoute<T> extends ModalRoute<T> {
+class AdaptativeModalPageRoute<T> extends PageRoute<T> {
   AdaptativeModalPageRoute({
     this.onWillDismiss,
     required this.builder,
