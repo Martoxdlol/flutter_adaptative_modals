@@ -210,13 +210,15 @@ class ModalAmbient extends StatelessWidget {
 
       if (smallerView && pageTransition != null) return pageTransition!;
 
+      final conditionalSecondaryAnimationValue = (fullScreen && smallerView) ? 0 : secondaryAnimationValue;
+
       final double scaleY = (smallerView ? 1 : (half));
-      final double scaleX = scaleY - (40 / width * secondaryAnimationValue);
+      final double scaleX = scaleY - (40 / width * conditionalSecondaryAnimationValue);
       final double leftCompensation = (1 - scaleX) * width / 2;
       return Stack(
         children: [
           ModalBarrier(
-            color: Color.fromRGBO(0, 0, 0, (animationValue - secondaryAnimationValue) * 0.3),
+            color: Color.fromRGBO(0, 0, 0, (animationValue - conditionalSecondaryAnimationValue) * 0.3),
           ),
           Positioned(
             width: width,
@@ -224,12 +226,12 @@ class ModalAmbient extends StatelessWidget {
             left: left,
             top: top,
             child: Transform(
-              transform:
-                  Matrix4.translationValues(leftCompensation, (1 - animationValue) * totalHeight / 1.5 - secondaryAnimationValue * 20, 0) +
-                      Transform.scale(
-                        scaleX: scaleX,
-                        scaleY: scaleY,
-                      ).transform,
+              transform: Matrix4.translationValues(
+                      leftCompensation, (1 - animationValue) * totalHeight / 1.5 - conditionalSecondaryAnimationValue * 20, 0) +
+                  Transform.scale(
+                    scaleX: scaleX,
+                    scaleY: scaleY,
+                  ).transform,
               child: ModalContentContainer(
                 borderRadius: (fullScreen && smallerView) ? 0 : borderRadius,
                 bottomRoundedCorners: bottomRoundedCorners,
@@ -279,59 +281,87 @@ class AdaptativeModal extends StatefulWidget {
   State<AdaptativeModal> createState() => _AdaptativeModalState(child: child, title: title);
 }
 
+class AdaptativeModalDragArea extends StatelessWidget {
+  const AdaptativeModalDragArea({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final page = AdaptativeModalPageRoute.of(context);
+    final controller = page?.controller;
+    final size = MediaQuery.of(context).size;
+
+    return GestureDetector(
+      onVerticalDragUpdate: (details) {
+        if (page?.animation == null) return;
+        controller?.animateTo(page!.animation!.value - details.delta.dy / size.height * 2, duration: Duration.zero);
+      },
+      onVerticalDragEnd: (details) {
+        if (page?.animation == null || controller == null) return;
+        final vel = details.velocity.pixelsPerSecond.dy;
+        final left = size.height * (1 - page!.animation!.value);
+        double time = left / vel;
+        if (time > 0.2) time = 0.2;
+        if (time < 0.01) time = 0.01;
+
+        up() => controller.animateTo(1, duration: Duration(milliseconds: (time * 1000).toInt()));
+
+        if (vel < -35) {
+          up();
+        } else if (vel > 70) {
+          Navigator.of(context).pop();
+        } else if (page.animation!.value > 0.5) {
+          up();
+        } else {
+          Navigator.of(context).pop();
+        }
+      },
+      child: child,
+    );
+  }
+}
+
+class AdaptativeModalAppBarWrapper extends StatelessWidget implements PreferredSizeWidget {
+  const AdaptativeModalAppBarWrapper({super.key, required this.appbar});
+  final PreferredSizeWidget appbar;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = MediaQuery.of(context);
+
+    final modal = AdaptativeModalPageRoute.of(context);
+
+    if (modal?.fullScreen == true && (modal?.width ?? 0) >= data.size.width) {
+      return appbar;
+    }
+
+    return MediaQuery(
+        data: data.copyWith(size: Size(data.size.width, 0)),
+        child: AdaptativeModalDragArea(
+          child: appbar,
+        ));
+  }
+
+  @override
+  Size get preferredSize => appbar.preferredSize;
+}
+
 class _AdaptativeModalState extends State<AdaptativeModal> with SingleTickerProviderStateMixin {
   _AdaptativeModalState({required this.child, required this.title});
   final Widget title;
   final Widget child;
 
-  late Animation<double> animation;
-  late AnimationController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = AnimationController(vsync: this);
-    animation = Tween<double>(begin: 0, end: 1).animate(controller);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final page = AdaptativeModalPageRoute.of(context)!;
+    final controller = AdaptativeModalPageRoute.of(context)!.controller!;
+
     return LayoutBuilder(builder: (context, constrains) {
       final scaffold = Scaffold(
         appBar: PreferredSize(
             preferredSize: const Size.fromHeight(40),
-            child: GestureDetector(
-              onVerticalDragUpdate: (details) {
-                controller.animateTo(constrains.maxHeight == 0 ? 0 : animation.value + details.delta.dy / constrains.maxHeight,
-                    duration: Duration(seconds: 0));
-              },
-              onVerticalDragEnd: (details) {
-                final left = constrains.maxHeight * (1 - animation.value);
-
-                double time = left / details.velocity.pixelsPerSecond.dy;
-
-                double value = time < 0 ? 0 : 1;
-
-                if (time < 0) time = -time;
-                if (time > 1.2) {
-                  time = 0.2;
-                  if (animation.value > 0.5) {
-                    value = 1;
-                  } else {
-                    value = 0;
-                  }
-                } else if (time > 0.4) time = 0.4;
-
-                final duration = Duration(milliseconds: (time * 1000).toInt());
-                details.velocity.pixelsPerSecond;
-                controller.animateTo(value, duration: duration);
-                Timer(Duration(milliseconds: duration.inMilliseconds ~/ 1.5), () {
-                  Navigator.of(context).pop();
-                });
-              },
-              onTap: () {
-                // controller.animateTo(0.4, duration: Duration(seconds: 1));
-              },
+            child: AdaptativeModalDragArea(
               child: Container(
                 height: 40,
                 decoration: const BoxDecoration(border: Border(bottom: BorderSide(width: 1, color: Color.fromRGBO(0, 0, 0, 0.1)))),
@@ -358,14 +388,7 @@ class _AdaptativeModalState extends State<AdaptativeModal> with SingleTickerProv
         body: child,
       );
 
-      return AnimatedBuilder(
-        animation: animation,
-        builder: (context, child) => Transform(
-          transform: Matrix4.translationValues(0, animation.value * constrains.maxHeight, 0),
-          child: child,
-        ),
-        child: scaffold,
-      );
+      return scaffold;
     });
   }
 }

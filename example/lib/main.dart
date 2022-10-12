@@ -2,6 +2,7 @@ import 'package:adaptative_modals/adaptative_modals.dart';
 import 'package:adaptative_modals_example/theme_switch.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(
@@ -93,7 +94,7 @@ void openModalFullScreen(BuildContext context) {
   openModal(
       context,
       (context) => Scaffold(
-            appBar: AppBar(),
+            appBar: AdaptativeModalAppBarWrapper(appbar: AppBar()),
             body: Container(
                 padding: EdgeInsets.all(10),
                 child: Column(
@@ -102,6 +103,11 @@ void openModalFullScreen(BuildContext context) {
                       child: Text('Open other modal'),
                       onTap: () => openModalFullScreen(context),
                     ),
+                    ColorlessButtonCard(
+                        child: const Text('Open modal'),
+                        onTap: () {
+                          openNormalModal(context);
+                        }),
                   ],
                 )),
           ),
