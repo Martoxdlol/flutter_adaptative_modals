@@ -105,7 +105,11 @@ class AdaptativeModalPageRoute<T> extends PageRoute<T> {
 
   @override
   Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
-    return builder(context);
+    final data = MediaQuery.of(context);
+    return MediaQuery(
+      data: data.copyWith(padding: data.padding.copyWith(top: 0)),
+      child: builder(context),
+    );
   }
 
   @override
@@ -295,11 +299,15 @@ class AdaptativeModalDragArea extends StatelessWidget {
     return GestureDetector(
       onVerticalDragUpdate: (details) {
         if (page?.animation == null) return;
-        controller?.animateTo(page!.animation!.value - details.delta.dy / size.height * 2, duration: Duration.zero);
+        final value = page!.animation!.value - details.delta.dy / size.height * 2.7;
+        controller?.animateTo(value, duration: Duration.zero);
       },
       onVerticalDragEnd: (details) {
         if (page?.animation == null || controller == null) return;
-        final vel = details.velocity.pixelsPerSecond.dy;
+        double vel = details.velocity.pixelsPerSecond.dy;
+
+        if (vel == 0) vel = 1;
+
         final left = size.height * (1 - page!.animation!.value);
         double time = left / vel;
         if (time > 0.2) time = 0.2;
@@ -328,23 +336,13 @@ class AdaptativeModalAppBarWrapper extends StatelessWidget implements PreferredS
 
   @override
   Widget build(BuildContext context) {
-    final data = MediaQuery.of(context);
-
-    final modal = AdaptativeModalPageRoute.of(context);
-
-    if (modal?.fullScreen == true && (modal?.width ?? 0) >= data.size.width) {
-      return appbar;
-    }
-
-    return MediaQuery(
-        data: data.copyWith(size: Size(data.size.width, 0)),
-        child: AdaptativeModalDragArea(
-          child: appbar,
-        ));
+    return AdaptativeModalDragArea(child: appbar);
   }
 
   @override
-  Size get preferredSize => appbar.preferredSize;
+  Size get preferredSize {
+    return appbar.preferredSize;
+  }
 }
 
 class _AdaptativeModalState extends State<AdaptativeModal> with SingleTickerProviderStateMixin {
