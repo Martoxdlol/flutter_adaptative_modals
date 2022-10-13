@@ -109,7 +109,7 @@ class AdaptativeModalPageRoute<T> extends PageRoute<T> {
 
     final modal = this;
 
-    if (modal.fullScreen == true && modal.width >= data.size.width) {
+    if (modal.fullScreen == true && (modal.width >= data.size.width || modal.height >= data.size.height)) {
       return builder(context);
     }
 
