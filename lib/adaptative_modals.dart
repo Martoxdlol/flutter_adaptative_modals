@@ -106,6 +106,13 @@ class AdaptativeModalPageRoute<T> extends PageRoute<T> {
   @override
   Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
     final data = MediaQuery.of(context);
+
+    final modal = this;
+
+    if (modal.fullScreen == true && modal.width >= data.size.width) {
+      return builder(context);
+    }
+
     return MediaQuery(
       data: data.copyWith(padding: data.padding.copyWith(top: 0)),
       child: builder(context),
